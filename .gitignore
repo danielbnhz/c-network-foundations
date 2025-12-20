@@ -1,0 +1,15 @@
+# Compiled binaries
+*.out
+*.exe
+app
+main
+
+# Build artifacts
+/build/
+*.o
+
+# Debug files
+*.dSYM
+
+# Editor / OS noise
+.DS_Store
