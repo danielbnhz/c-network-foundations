@@ -3,6 +3,8 @@
 *.exe
 app
 main
+*.so
+*.a
 
 # Build artifacts
 /build/
@@ -13,3 +15,7 @@ main
 
 # Editor / OS noise
 .DS_Store
+
+server
+http_server
+client
