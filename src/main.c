@@ -5,6 +5,8 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include "http_request.h"
+#include "http_body.h"
+#include "db.h"
 
 
 
@@ -12,6 +14,12 @@
 #define BUFFER_SIZE 4096
 
 int main(void) {
+    
+    if (db_init() != 0) {
+    fprintf(stderr, "Failed to initialize database\n");
+    return 1;
+    }   
+
     int server_fd, client_fd;
     struct sockaddr_in addr;
     socklen_t addr_len = sizeof(addr);
@@ -50,31 +58,38 @@ int main(void) {
 
     // Read HTTP request
     int bytes = recv(client_fd, buffer, BUFFER_SIZE - 1, 0);
-    http_request_t req;
-
-    if (parse_http_request(buffer, &req) == 0) {
-        printf("Method:  %s\n", req.method);
-        printf("Path:    %s\n", req.path);
-        printf("Version: %s\n", req.version);
-    } else {
-        printf("Failed to parse HTTP request\n");
+    if (bytes <= 0) {
+        close(client_fd);
+        return 1;
     }
 
+    buffer[bytes] = '\0';
+
+    /* 👇 ADD HERE */
+    http_request_t req;
+
+    if (parse_http_request(buffer, &req) != 0) {
+        fprintf(stderr, "Failed to parse HTTP request\n");
+        close(client_fd);
+        return 1;
+    }
 
     
     if (bytes > 0) {
         buffer[bytes] = '\0';
         printf("Request:\n%s\n", buffer);
     }
-    
-    const char *body;
 
-    if (strcmp(req.path, "/") == 0) {
-        body = "Welcome to the root!\n";
-    } else if (strcmp(req.path, "/hello") == 0) {
-        body = "Hello there 👋\n";
-    } else {
-        body = "404 Not Found\n";
+    const char *body = "OK\n";
+
+    if (strcmp(req.method, "GET") == 0) {
+        if (strcmp(req.path, "/") == 0) {
+            body = "Welcome to the root!\n";
+        } else if (strcmp(req.path, "/hello") == 0) {
+            body = "Hello there 👋\n";
+        } else {
+            body = "404 Not Found\n";
+        }
     }
 
 
@@ -90,7 +105,26 @@ int main(void) {
         strlen(body), body
     );
 
+        if (strcmp(req.method, "POST") == 0) {
+        char post_body[1024];
+
+        if (extract_http_body(buffer, post_body, sizeof(post_body)) == 0) {
+
+            // 👇 THIS IS THE "SQL YOU SEE" IN TERMINAL
+            fprintf(stderr,
+                "[SQL] INSERT INTO posts (path, body) VALUES ('%s', '%s')\n",
+                req.path,
+                post_body
+            );
+
+            db_insert_post(req.path, post_body);
+        }
+    }
+
+
+
     send(client_fd, response, strlen(response), 0);
+    db_close();
 
     close(client_fd);
     close(server_fd);

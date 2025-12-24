@@ -10,6 +10,7 @@ server
 # Build artifacts
 /build/
 *.o
+data.db
 
 # Debug files
 *.dSYM
