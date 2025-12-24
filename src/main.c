@@ -4,6 +4,9 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include "http_request.h"
+
+
 
 #define PORT 8080
 #define BUFFER_SIZE 4096
@@ -47,13 +50,33 @@ int main(void) {
 
     // Read HTTP request
     int bytes = recv(client_fd, buffer, BUFFER_SIZE - 1, 0);
+    http_request_t req;
+
+    if (parse_http_request(buffer, &req) == 0) {
+        printf("Method:  %s\n", req.method);
+        printf("Path:    %s\n", req.path);
+        printf("Version: %s\n", req.version);
+    } else {
+        printf("Failed to parse HTTP request\n");
+    }
+
+
+    
     if (bytes > 0) {
         buffer[bytes] = '\0';
         printf("Request:\n%s\n", buffer);
     }
+    
+    const char *body;
 
-    // HTTP response body
-    const char *body = "Hello from your C HTTP server!\n";
+    if (strcmp(req.path, "/") == 0) {
+        body = "Welcome to the root!\n";
+    } else if (strcmp(req.path, "/hello") == 0) {
+        body = "Hello there 👋\n";
+    } else {
+        body = "404 Not Found\n";
+    }
+
 
     // Build HTTP response
     char response[BUFFER_SIZE];
